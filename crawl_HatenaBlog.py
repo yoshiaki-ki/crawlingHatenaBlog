@@ -91,8 +91,11 @@ def bookmark(bookmark_url):
 
     # ブラウザのオプションを格納する変数をもらってきます。
     options = Options()
+    # 追加
+    options.binary_location = '/app/.apt/usr/bin/google-chrome'
     options.add_argument('--headless')
-    driver = webdriver.Chrome(executable_path="/Users/shingo/webdriver/chromedriver", chrome_options=options)
+    # コメントアウト  driver = webdriver.Chrome(executable_path="/Users/shingo/webdriver/chromedriver", chrome_options=options)
+    driver = webdriver.Chrome(chrome_options=options)
 
     print("ここまで")
 
