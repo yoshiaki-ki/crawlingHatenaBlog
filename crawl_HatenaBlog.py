@@ -8,8 +8,7 @@ import re
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
-from time import sleep   # 新しくインポート
-import datetime
+from time import sleep
 
 # ここからflaskの必要分
 import os
@@ -26,20 +25,22 @@ CORS(app)
 @app.route('/')
 def index():
     return """
-    使い方 : /api/<記事リストのURL> /n
-    <記事リストのURL>には　"entrylist?url="　以降を入力する
+    <h2>/api/<記事リストのURL></h2>
+    <p>サンプルURL：httpsXXXjapanese.engadget.comYYY</p>
+
+    <h2>/api/bookmark/＜bookmarkのURL＞</h2>
+    <p>サンプルURL：httpXXXb.hatena.ne.jpYYYentryYYYsYYYjapanese.engadget.comYYY2019YYY04YYY01YYYipodYYY</p>
     """
 
 
 @app.route('/api/<list_url>')  # list_urlは記事一ページのURL
-def slide(list_url):
+def get_article_list(list_url):
     # list_urlにはXXXで渡されるため、元のURLに戻す
     string_1 = re.compile("XXX")
-    string_2 = re.compile("X$")
+    string_2 = re.compile("YYY")
     url = string_1.sub("%3A%2F%2F", list_url)
     url = string_2.sub("%2F", url)
     URL = "http://b.hatena.ne.jp/entrylist?url=" + str(url)
-    print(URL)
 
     html = urllib.request.urlopen(URL).read()
     data_list = []  # 全ページのデータを集める配列
@@ -68,20 +69,10 @@ def slide(list_url):
     return jsonstring
 
 
-@app.route('/api/test/<url>')  # list_urlは記事一ページのURL
-def test(url):
-    string_3 = re.compile("Z")
-    string_4 = re.compile("XXX")
-    string_5 = re.compile("YYY")
-    URL = string_3.sub("%", url)
-    URL = string_4.sub("://", URL)
-    URL = string_5.sub("/", URL)
-    print("ちゃんと動く")
-    return URL
-
-
-@app.route('/api/bookmark/<bookmark_url>')  # list_urlは記事一ページのURL
-def bookmark(bookmark_url):
+@app.route('/api/bookmark/<bookmark_url>')
+def get_bookmark(bookmark_url):
+    # /や％の文字は認識してくれないため、それらをZ,XXX,YYYで置き換えたURLを引数にして、
+    # もとのURLに戻す
     string_3 = re.compile("Z")
     string_4 = re.compile("XXX")
     string_5 = re.compile("YYY")
@@ -89,15 +80,20 @@ def bookmark(bookmark_url):
     url = string_4.sub("://", url)
     URL = string_5.sub("/", url)
 
-    # ブラウザのオプションを格納する変数をもらってきます。
+    # ブラウザのオプションを格納する変数
     options = Options()
-    # 追加
-    options.binary_location = '/app/.apt/usr/bin/google-chrome'
-    options.add_argument('--headless')
-    # コメントアウト  driver = webdriver.Chrome(executable_path="/Users/shingo/webdriver/chromedriver", chrome_options=options)
-    driver = webdriver.Chrome(chrome_options=options)
 
-    print("ここまで")
+    # Heroku以外ではNone
+    if chrome_binary_path:
+        options.binary_location = chrome_binary_path
+        options.add_argument('--headless')
+
+        driver = Chrome(executable_path=driver_path, chrome_options=options)
+
+    #　ローカルの場合
+    # options.add_argument('--headless')
+    # driver = webdriver.Chrome(executable_path="/Users/kiryu/webdriver/chromedriver", chrome_options=options)
+
 
     # URLを開いてから3秒待機
     driver.get(URL)
@@ -123,6 +119,8 @@ def bookmark(bookmark_url):
     # ブックマークしているユーザーをとる
     data = driver.page_source.encode('utf-8')  # ページ内の情報をutf-8で用意する
     soup = BeautifulSoup(data, "html.parser")
+
+    # ブックマークしている人たちを格納するリスト
     bookmark_users = []
 
     users = soup.find_all("span", class_="entry-comment-username")
@@ -136,14 +134,12 @@ def bookmark(bookmark_url):
         bookmark_users.append(bookmark_user_in)
 
     driver.close()
-    driver.quit()
 
+    # 作った配列をjson形式にして出力する
     jsonstring = json.dumps(bookmark_users, ensure_ascii=False,
-                            indent=2)  # 作った配列をjson形式にして出力する
+                            indent=2)
     return jsonstring
 
 
-
-# bashで叩いたかimportで入れたかを判定する
 if __name__ == '__main__':
     app.run()
